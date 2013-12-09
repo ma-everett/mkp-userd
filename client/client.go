@@ -95,7 +95,7 @@ func minimal(status bool,err error,start time.Time,finish time.Duration) (bool,e
 
 	d := time.Now().Sub(start)
 	if d < finish {
-		time.After(finish - d)
+		time.Sleep(finish - d)
 	}
 	return status,err
 }
@@ -108,6 +108,181 @@ func NewClient(minimal, timeout time.Duration) *Client {
 	
 	return c
 }
+
+
+type Control struct {
+
+	conn net.Conn
+	timeout time.Duration
+}
+
+func (c *Control) Dial() error {
+
+	conn,err := net.Dial("tcp4","localhost:9998")
+	if err != nil {
+		return err
+	}
+
+	c.conn = conn
+
+	return nil
+}
+
+func (c *Control) Hangup() error {
+
+	if c.conn == nil {
+		return NotConnected
+	}
+
+	return c.conn.Close()
+}
+
+func (c *Control) Set(key string) (bool,error) {
+
+	if c.conn == nil {
+		return false,NotConnected
+	}
+
+	_,err := c.conn.Write(protocol.MakeTSet(key))
+	if err != nil {
+		return false,err
+	}
+
+	/* TODO: check the length  */
+
+	/* wait for remote connection */
+	select {
+	case <- time.After(c.timeout): 
+		return false,TimeOut
+
+	case w := <- wrapConn(c.conn):
+		
+		if w.err != nil {
+			return false,w.err
+		}
+
+		ok,err := protocol.IsSetValid(w.data)
+		if err != nil {
+			return false,err
+		}
+
+		return ok,nil
+		break
+	}
+
+	return false,NotImplemented
+}
+
+func (c *Control) Remove(key string) (bool,error) {
+
+	if c.conn == nil {
+		return false,NotConnected
+	}
+
+	_,err := c.conn.Write(protocol.MakeTRemove(key))
+	if err != nil {
+		return false,err
+	}
+
+	/* TODO: check the length */
+
+	select {
+	case <- time.After(c.timeout):
+		return false,TimeOut
+	
+	case w := <- wrapConn(c.conn):
+
+		if w.err != nil {
+			return false,w.err
+		}
+
+		ok,err := protocol.IsRemoveValid(w.data)
+		if err != nil {
+			return false,err
+		}
+		
+		return ok,nil
+		break
+	}
+
+	return false,NotImplemented
+}
+
+func (c *Control) Check(key string) (bool,error) {
+
+	if c.conn == nil {
+		return false,NotConnected
+	}
+
+	_,err := c.conn.Write(protocol.MakeTCheck(key))
+	if err != nil {
+		return false,err
+	}
+	
+	select {
+	case <- time.After(c.timeout):
+		return false,TimeOut
+		
+	case w := <- wrapConn(c.conn):
+
+		if w.err != nil {
+			return false,w.err
+		}
+
+		ok,err := protocol.IsCheckValid(w.data)
+		if err != nil {
+			return false,err
+		}
+
+		return ok,nil
+		break
+	}
+
+	return false,NotImplemented
+}
+
+func (c *Control) Purge() (bool,error) {
+
+	if c.conn == nil {
+		return false,NotConnected
+	}
+
+	_,err := c.conn.Write(protocol.MakeTPurge())
+	if err != nil {
+		return false,err
+	}
+
+	select {
+	case <- time.After(c.timeout):
+		return false,TimeOut
+
+	case w := <- wrapConn(c.conn):
+
+		if w.err != nil {
+			return false,w.err
+		}
+
+		ok,err := protocol.IsPurgeValid(w.data)
+		if err != nil {
+			return false,err
+		}
+
+		return ok,nil
+		break
+	}
+
+	return false,NotImplemented
+}
+
+func NewControl(timeout time.Duration) *Control {
+
+	c := new(Control)
+	c.timeout = timeout
+
+	return c
+}
+
+
 
 type wrapper struct {
 

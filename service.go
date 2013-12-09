@@ -263,7 +263,7 @@ func handle(conn *net.TCPConn, wg *WorkGroup, storech chan *Store,infoch chan *I
 				return
 			}
 
-			log.Printf("recieved : %s", string(w.data))
+			//log.Printf("recieved : %s", string(w.data))
 
 			parts := strings.Split(string(w.data), " ")
 
@@ -276,8 +276,7 @@ func handle(conn *net.TCPConn, wg *WorkGroup, storech chan *Store,infoch chan *I
 
 			switch strings.ToLower(parts[0]) {
 			case "set": /* set operation */
-				log.Printf("SET")
-
+		
 				if len(parts) < 2 {
 					conn.Write([]byte("INVALID DATA\n"))
 					break
@@ -293,8 +292,7 @@ func handle(conn *net.TCPConn, wg *WorkGroup, storech chan *Store,infoch chan *I
 				storech <- s
 				break
 			case "remove": /* remove operation */
-				log.Printf("REMOVE")
-
+			
 				if len(parts) < 2 {
 					conn.Write([]byte("INVALID DATA\n"))
 					break
@@ -310,8 +308,7 @@ func handle(conn *net.TCPConn, wg *WorkGroup, storech chan *Store,infoch chan *I
 				storech <- s
 				break
 			case "check": /* check operation */
-				log.Printf("CHECK")
-
+			
 				if len(parts) < 2 {
 					conn.Write([]byte("INVALID DATA\n"))
 					break
@@ -327,8 +324,7 @@ func handle(conn *net.TCPConn, wg *WorkGroup, storech chan *Store,infoch chan *I
 				storech <- s
 				break
 			case "purge":
-				log.Printf("PURGE")
-
+			
 				<- storech /* original store should get garbage collected */ 
 
 				ns := NewStore() /* create new store and replace */
