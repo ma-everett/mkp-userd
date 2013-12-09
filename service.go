@@ -1,4 +1,3 @@
-
 /* mkp-userd/service.go */
 
 package main
@@ -69,7 +68,7 @@ func main() {
 
 	/* service client connections : */
 	go func() {
-	
+
 		quit := ctrl.Start()
 		defer ctrl.Finish()
 
@@ -77,40 +76,40 @@ func main() {
 
 		for {
 			select {
-			case <- quit:
+			case <-quit:
 				return
-								
-			case conn := <- wrapAcceptTCP(sconn): /* wait on service connection from service port */
+
+			case conn := <-wrapAcceptTCP(sconn): /* wait on service connection from service port */
 
 				if conn == nil {
 					continue
 				}
 
-				go handle(conn,ctrl,storech,infoch)
+				go handle(conn, ctrl, storech, infoch)
 				break
 			}
 		}
 	}()
 
 	go func() {
-		
+
 		quit := ctrl.Start()
 		defer ctrl.Finish()
 
 		infoch := NewInformation()
-		
+
 		for {
 			select {
-			case <- quit:
+			case <-quit:
 				return
 
-			case conn := <- wrapAcceptTCP(cconn): /* wait on client connection from client port */
-				
+			case conn := <-wrapAcceptTCP(cconn): /* wait on client connection from client port */
+
 				if conn == nil {
 					continue
 				}
-				
-				go handleClient(conn,ctrl,storech,infoch)
+
+				go handleClient(conn, ctrl, storech, infoch)
 				break
 			}
 		}
@@ -118,25 +117,25 @@ func main() {
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGHUP, os.Interrupt)
-	
-	<- c
-	
+
+	<-c
+
 	log.Printf("user interrupt\n")
 	signal.Stop(c)
 	ctrl.DownToolsAndWait()
-	os.Exit(1)	
+	os.Exit(1)
 }
 
 /* wrapAcceptTCP - wrap a TCP listener for use in a select */
 func wrapAcceptTCP(listener *net.TCPListener) chan *net.TCPConn {
 
-	ch := make(chan *net.TCPConn,1)
+	ch := make(chan *net.TCPConn, 1)
 
 	go func() {
 
-		conn,err := listener.AcceptTCP()
+		conn, err := listener.AcceptTCP()
 		if err != nil {
-			log.Printf("error on acceptTCP - %v",err)
+			log.Printf("error on acceptTCP - %v", err)
 			ch <- nil
 			return
 		}
@@ -180,24 +179,23 @@ func wrapConn(conn *net.TCPConn) chan Wrapper {
 }
 
 /* handle client connection */
-func handleClient(conn *net.TCPConn, wg *WorkGroup, storech chan *Store,infoch chan *Information) {
+func handleClient(conn *net.TCPConn, wg *WorkGroup, storech chan *Store, infoch chan *Information) {
 
 	quit := wg.Start()
 	defer wg.Finish()
 
 	defer conn.Close()
 
-
 	addConnection(infoch)
 	defer removeConnection(infoch)
 
 	for {
 		select {
-		case <- quit:
+		case <-quit:
 			conn.Write([]byte("CLOSING\n"))
 			return
 
-		case w := <- wrapConn(conn):
+		case w := <-wrapConn(conn):
 			if w.eof {
 				log.Printf("End of File")
 				return
@@ -207,7 +205,7 @@ func handleClient(conn *net.TCPConn, wg *WorkGroup, storech chan *Store,infoch c
 				return
 			}
 
-			parts := strings.Split(string(w.data)," ")
+			parts := strings.Split(string(w.data), " ")
 
 			if len(parts) < 2 {
 				log.Printf("Invalid data")
@@ -235,7 +233,7 @@ func handleClient(conn *net.TCPConn, wg *WorkGroup, storech chan *Store,infoch c
 }
 
 /* handle service connection */
-func handle(conn *net.TCPConn, wg *WorkGroup, storech chan *Store,infoch chan *Information) {
+func handle(conn *net.TCPConn, wg *WorkGroup, storech chan *Store, infoch chan *Information) {
 
 	quit := wg.Start()
 	defer wg.Finish()
@@ -273,10 +271,9 @@ func handle(conn *net.TCPConn, wg *WorkGroup, storech chan *Store,infoch chan *I
 				continue
 			}
 
-
 			switch strings.ToLower(parts[0]) {
 			case "set": /* set operation */
-		
+
 				if len(parts) < 2 {
 					conn.Write([]byte("INVALID DATA\n"))
 					break
@@ -292,7 +289,7 @@ func handle(conn *net.TCPConn, wg *WorkGroup, storech chan *Store,infoch chan *I
 				storech <- s
 				break
 			case "remove": /* remove operation */
-			
+
 				if len(parts) < 2 {
 					conn.Write([]byte("INVALID DATA\n"))
 					break
@@ -308,7 +305,7 @@ func handle(conn *net.TCPConn, wg *WorkGroup, storech chan *Store,infoch chan *I
 				storech <- s
 				break
 			case "check": /* check operation */
-			
+
 				if len(parts) < 2 {
 					conn.Write([]byte("INVALID DATA\n"))
 					break
@@ -324,15 +321,15 @@ func handle(conn *net.TCPConn, wg *WorkGroup, storech chan *Store,infoch chan *I
 				storech <- s
 				break
 			case "purge":
-			
-				<- storech /* original store should get garbage collected */ 
+
+				<-storech /* original store should get garbage collected */
 
 				ns := NewStore() /* create new store and replace */
 
 				storech <- ns
 
 				conn.Write([]byte("PURGE OK\n"))
-				break				
+				break
 
 			default: /* default unknown operation */
 				log.Printf("UNKNOWN")
@@ -443,9 +440,7 @@ func NewStore() *Store {
 	return s
 }
 
-
 type Information struct {
-
 	Connections int
 }
 
@@ -454,21 +449,21 @@ func NewInformation() chan *Information {
 	info := new(Information)
 	info.Connections = 0
 
-	ch := make(chan *Information,1)
+	ch := make(chan *Information, 1)
 	ch <- info
 	return ch
 }
 
 func addConnection(infoch chan *Information) {
 
-	info := <- infoch
-	info.Connections ++
+	info := <-infoch
+	info.Connections++
 	infoch <- info
 }
 
 func removeConnection(infoch chan *Information) {
 
-	info := <- infoch
-	info.Connections --
+	info := <-infoch
+	info.Connections--
 	infoch <- info
 }
