@@ -5,9 +5,9 @@ package userd
 import (
 	"errors"
 	"net"
-	"fmt"
 	"time"
-	"strings"
+
+	protocol "../protocol"
 )
 
 var (
@@ -16,9 +16,7 @@ var (
 	NotImplemented = errors.New("Not Implemented")
 	InvalidData    = errors.New("Invalid Data")
 	TimeOut        = errors.New("Timeout")
-	Check          = "CHECK"
 )
-
 
 type Client struct {
 
@@ -56,16 +54,16 @@ func (c *Client) Check(key string) (bool,error) {
 		return minimal(false,NotConnected,start,c.minimal)
 	}
 
-	str := fmt.Sprintf("CHECK %s",key)
-
-	n,err := c.conn.Write([]byte(str))
+	_,err := c.conn.Write(protocol.MakeTCheck(key))
 	if err != nil {
 		return minimal(false,err,start,c.minimal)
 	}
 
+	/* TODO: check the length 
 	if n != len(str) {
 		return minimal(false,LengthMismatch,start,c.minimal)
 	}
+        */
 
 	/* wait for remote connection */
 	select {
@@ -78,18 +76,12 @@ func (c *Client) Check(key string) (bool,error) {
 			return minimal(false,w.err,start,c.minimal)
 		}
 
-		parts := strings.Split(string(w.data)," ")
-		if len(parts) != 2 {
-			return minimal(false,InvalidData,start,c.minimal)
+		ok,err := protocol.IsCheckValid(w.data)
+		if err != nil {
+			return minimal(false,err,start,c.minimal)
 		}
 
-		if parts[0] != Check {
-			return minimal(false,InvalidData,start,c.minimal)
-		}
-
-		if parts[1] == "YES" {
-			return minimal(true,nil,start,c.minimal)
-		}
+		return minimal(ok,nil,start,c.minimal)
 		break
 	}
 
@@ -107,8 +99,6 @@ func minimal(status bool,err error,start time.Time,finish time.Duration) (bool,e
 	}
 	return status,err
 }
-	
-
 
 func NewClient(minimal, timeout time.Duration) *Client {
 
