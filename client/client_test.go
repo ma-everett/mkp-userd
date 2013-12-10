@@ -53,7 +53,7 @@ func TestControl(t *testing.T) {
 
 func BenchmarkClientCheck(b *testing.B) {
 
-	client := NewClient(1*time.Millisecond, 3*time.Second)
+	client := NewClient(1 * time.Millisecond, 10 * time.Millisecond)
 	err := client.Dial()
 	if err != nil {
 		b.Error(err)
@@ -72,7 +72,7 @@ func BenchmarkClientCheck(b *testing.B) {
 
 func BenchmarkClientCheckL(b *testing.B) {
 
-	client := NewClient(1*time.Second, 3*time.Second)
+	client := NewClient(1*time.Second, 1*time.Second)
 	err := client.Dial()
 	if err != nil {
 		b.Error(err)

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>login</title>
+    <link rel="stylesheet" href="/static/style.css">
+
+    </head>
+<body>
+
+  <header>
+    <p>{{.}}</p>
+    </header>
+
+  <section>
+    <h1>Login</h1>
+
+    <p>The login process consists of the user entering a
+    unique <em>username</em> and <em>password</em> pair. That when combined
+    with a hidden <em>salt</em> and hashed using <strong>sha512</strong>.</p>
+
+    <p>This allows the testing of <strong>userd</strong> by checking for the existance
+    of this hash.</p>
+
+    <p>On the checks success &mdash; that the hash is present
+    in <strong>userd's</strong> memory &mdash; a session will be started on
+    behalf of the user. This session consists of a <em>timeout</em> and
+    a <em>session token</em>.</p>
+
+    <p>The <em>timeout</em> is used to automagically remove the session after
+    a period of inactivity and the <em>session token</em> is used to continue
+    the session as the user interacts with the web application. Both of these
+    mechanisms can be implemented with a number of different pieces of
+    software, the simplest would be using <strong>memcached</strong> to store sessions.</p>
+
+    <form action="/user/login/" method="post">
+      <label>Username</label>
+      <input id="username" name="username" placeholder="enter username" type="text"
+	     autofocus required/><br>
+      <script>
+	if (!("autofocus" in document.createElement("input"))){
+	document.getElementById("username").focus();} </script>
+      <label>Password</label>
+      <input name="password" type="password" required placeholder="enter password"/><br>
+      <button type="submit">login</button> <button type="reset" class="reset">reset</button>
+    </form></section>
+
+  
+  
+</body>
+</html>

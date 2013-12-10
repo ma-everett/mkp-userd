@@ -14,6 +14,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	protocol "./protocol"
 )
 
 func main() {
@@ -109,6 +111,13 @@ func main() {
 					continue
 				}
 
+				/* start multiplexor */
+
+				//m := NewMultiplexor(conn,storech)
+				//m.Start(ctrl)
+				//break
+
+				 
 				go handleClient(conn, ctrl, storech, infoch)
 				break
 			}
@@ -181,6 +190,8 @@ func wrapConn(conn *net.TCPConn) chan Wrapper {
 /* handle client connection */
 func handleClient(conn *net.TCPConn, wg *WorkGroup, storech chan *Store, infoch chan *Information) {
 
+	log.Printf("New Client Connection\n")
+
 	quit := wg.Start()
 	defer wg.Finish()
 
@@ -218,9 +229,9 @@ func handleClient(conn *net.TCPConn, wg *WorkGroup, storech chan *Store, infoch 
 				s := <-storech
 				if s.Check(parts[1]) {
 
-					conn.Write([]byte("CHECK YES\n"))
+					conn.Write(protocol.MakeRCheck(true))
 				} else {
-					conn.Write([]byte("CHECK NO\n"))
+					conn.Write(protocol.MakeRCheck(false))
 				}
 				storech <- s
 				break
@@ -234,6 +245,8 @@ func handleClient(conn *net.TCPConn, wg *WorkGroup, storech chan *Store, infoch 
 
 /* handle service connection */
 func handle(conn *net.TCPConn, wg *WorkGroup, storech chan *Store, infoch chan *Information) {
+
+	log.Printf("New Control Connection\n")
 
 	quit := wg.Start()
 	defer wg.Finish()
@@ -282,41 +295,41 @@ func handle(conn *net.TCPConn, wg *WorkGroup, storech chan *Store, infoch chan *
 				s := <-storech
 				if s.Set(parts[1]) {
 
-					conn.Write([]byte("SET OK\n"))
+					conn.Write(protocol.MakeRSet(true))
 				} else {
-					conn.Write([]byte("SET FAILED\n"))
+					conn.Write(protocol.MakeRSet(false))
 				}
 				storech <- s
 				break
 			case "remove": /* remove operation */
 
 				if len(parts) < 2 {
-					conn.Write([]byte("INVALID DATA\n"))
+					conn.Write([]byte("INVALID DATA"))
 					break
 				}
 
 				s := <-storech
 				if s.Remove(parts[1]) {
 
-					conn.Write([]byte("REMOVE OK\n"))
+					conn.Write(protocol.MakeRRemove(true))
 				} else {
-					conn.Write([]byte("REMOVE FAILED\n"))
+					conn.Write(protocol.MakeRRemove(false))
 				}
 				storech <- s
 				break
 			case "check": /* check operation */
 
 				if len(parts) < 2 {
-					conn.Write([]byte("INVALID DATA\n"))
+					conn.Write([]byte("INVALID DATA"))
 					break
 				}
 
 				s := <-storech
 				if s.Check(parts[1]) {
 
-					conn.Write([]byte("CHECK YES\n"))
+					conn.Write(protocol.MakeRCheck(true))
 				} else {
-					conn.Write([]byte("CHECK NO\n"))
+					conn.Write(protocol.MakeRCheck(false))
 				}
 				storech <- s
 				break
@@ -401,6 +414,8 @@ func (s *Store) Check(key string) bool {
 
 	/* TODO: add a filter to remove /n and other end-of-lines */
 
+	log.Printf("check(%s..)\n",key[:8])
+
 	if _, exists := s.Entries[key]; exists {
 		return true
 	}
@@ -415,6 +430,8 @@ func (s *Store) Set(key string) bool {
 	if _, exists := s.Entries[key]; exists {
 		return false
 	}
+
+	log.Printf("key %s.. set\n",key[:8])
 
 	s.Entries[key] = time.Now()
 	return true
