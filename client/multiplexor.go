@@ -5,6 +5,7 @@ package userd
 import (
 	"net"
 	"time"
+	"errors"
 	
 	protocol "../protocol"
 )
@@ -16,50 +17,64 @@ type task struct {
 }
 
 type Client struct {
-
 	
 	minimal time.Duration
 	timeout time.Duration
-	conn    net.Conn
 
 	queuech chan task
+	quit chan bool
 }
 
 func (m *Client) Dial() error {
+
+	if m.quit != nil {
+		return errors.New("Already dialled")
+	}
+
+	m.quit = make(chan bool,1)
 
 	conn,err := net.Dial("tcp4","localhost:9999")
 	if err != nil {
 		return err
 	}
 
-	m.conn = conn
-
 	/* start queue gorountine */
-	/* TODO: the goroutine needs a WorkGroup to close properly */
 	go func() {
 
-		for {
-			ntask := <- m.queuech
-			_,err := m.conn.Write(protocol.MakeTCheck(ntask.Key))
-			if err != nil {
-				ntask.ch <- CheckOutput{false,err}
-				continue
-			}
+		quit := m.quit
+		queue := m.queuech
 
+		defer conn.Close()
+
+		for {
 			select {
-			case <- time.After(m.timeout):
-				ntask.ch <- CheckOutput{false,TimeOut}
+			case <- quit:
+				return
 				
-				break
-			case w := <- wrapConn(m.conn):
-				
-				if w.err != nil {
-					ntask.ch <- CheckOutput{false,w.err}
+			case ntask := <- queue:
+		
+				_,err := conn.Write(protocol.MakeTCheck(ntask.Key))
+				if err != nil {
+					ntask.ch <- CheckOutput{false,err}
 					break
 				}
 				
-				ok,err := protocol.IsCheckValid(w.data)
-				ntask.ch <- CheckOutput{ok,err}
+				select {
+				case <- time.After(m.timeout):
+					ntask.ch <- CheckOutput{false,TimeOut}
+					
+					break
+				case w := <- wrapConn(conn):
+					
+					if w.err != nil {
+						ntask.ch <- CheckOutput{false,w.err}
+						break
+					}
+					
+					ok,err := protocol.IsCheckValid(w.data)
+					ntask.ch <- CheckOutput{ok,err}
+					break
+				}
 				break
 			}
 		}
@@ -70,11 +85,12 @@ func (m *Client) Dial() error {
 
 func (m *Client) Hangup() error {
 
-	if m.conn == nil {
+	if m.quit == nil {
 		return NotConnected
 	}
 
-	return m.conn.Close()
+	close(m.quit)
+	return nil
 }
 
 func (m *Client) Check(key string) chan CheckOutput {
