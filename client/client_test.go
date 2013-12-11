@@ -17,7 +17,7 @@ func TestClient(t *testing.T) {
 
 	defer client.Hangup()
 
-	if _, err := client.Check("hello"); err != nil {
+	if _, err := Check(client.Check("hello")); err != nil {
 
 		t.Error(err)
 	}
@@ -63,7 +63,7 @@ func BenchmarkClientCheck(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 
-		if _, err := client.Check("hello"); err != nil {
+		if _, err := Check(client.Check("hello")); err != nil {
 
 			b.Error(err)
 		}
@@ -81,7 +81,8 @@ func BenchmarkClientCheckL(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		if _, err := client.Check("hello"); err != nil {
+
+		if _, err := Check(client.Check("hello")); err != nil {
 			b.Error(err)
 		}
 	}

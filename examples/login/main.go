@@ -61,13 +61,13 @@ func main() {
 
 	control.Hangup()
 
-	client = userd.NewClient(3 * time.Second,1 * time.Second)
+	/* Create a new client with a minimal check time of 1 second and a 3 second timeout */ 
+	client = userd.NewClient(1 * time.Second,3 * time.Second)
 	if err := client.Dial(); err != nil {
 		log.Fatalf("unable to dial userd service - %v\n",err)
 	}
 
 	http.HandleFunc("/user/login/",loginHandler)
-	http.HandleFunc("/user/home/",homeHandler)
 	http.HandleFunc("/static/style.css",styleHandler)
 	http.HandleFunc("/",rootHandler)
 
@@ -86,7 +86,7 @@ func render(w http.ResponseWriter,msg string) {
 	}
 }
 
-/* hash(hash(username) + password) */
+/* sha512(sha512(username) + password) */
 func hash(username,password string) string {
 
 	hash := sha512.New()
@@ -99,7 +99,7 @@ func hash(username,password string) string {
 
 	e := hex.EncodeToString(h)
 
-	log.Printf("hash(hash(%s) + %s) = %s..\n",username,password,e[:8])
+	log.Printf("sha512(sha512(%s) + %s) = %s..\n",username,password,e[:8])
 	return e
 }
 
@@ -117,7 +117,7 @@ func loginHandler(w http.ResponseWriter, req *http.Request) {
 
 	h := hash(username,password)
 	
-	if ok,err := client.Check(h); err != nil {
+	if ok,err := client.Checked(h); err != nil {
 
 		log.Printf("failed: userd is down\n")
 		failedLoginHandler(w,req)
@@ -125,6 +125,7 @@ func loginHandler(w http.ResponseWriter, req *http.Request) {
 	} else {
 
 		if !ok { /* wrong username/password */
+
 			log.Printf("login: user %s does not exist at userd\n",username)
 			failedLoginHandler(w,req)
 			return
@@ -132,17 +133,12 @@ func loginHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	/* user found */
-	http.Redirect(w,req,fmt.Sprintf("/user/home/?u=%s",username),http.StatusFound)	
+	render(w,fmt.Sprintf("User %s found.",username))	
 }
 
 func styleHandler(w http.ResponseWriter, req *http.Request) {
 
 	http.ServeFile(w,req,"style.css")
-}
-
-func homeHandler(w http.ResponseWriter, req *http.Request) {
-
-	render(w,"Home - FIXME")
 }
 
 func rootHandler(w http.ResponseWriter, req *http.Request) {

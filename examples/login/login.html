@@ -15,22 +15,20 @@
     <h1>Login</h1>
 
     <p>The login process consists of the user entering a
-    unique <em>username</em> and <em>password</em> pair. That when combined
-    with a hidden <em>salt</em> and hashed using <strong>sha512</strong>.</p>
+    unique <em>username</em> and <em>password</em> pair.</p>
 
-    <p>This allows the testing of <strong>userd</strong> by checking for the existance
+    <pre>hash = sha512(sha512(username) + password)</pre>
+
+    <p>This allows the testing of <strong>userd</strong> by checking for the existence
     of this hash.</p>
 
     <p>On the checks success &mdash; that the hash is present
-    in <strong>userd's</strong> memory &mdash; a session will be started on
-    behalf of the user. This session consists of a <em>timeout</em> and
-    a <em>session token</em>.</p>
+    in <strong>userd's</strong> memory &mdash; the user can be safely logged in using the 
+      you're usual methods. In this capacity <strong>userd</strong> is used as a 
+      buffer mechanism between login and back-end user database.</p>
 
-    <p>The <em>timeout</em> is used to automagically remove the session after
-    a period of inactivity and the <em>session token</em> is used to continue
-    the session as the user interacts with the web application. Both of these
-    mechanisms can be implemented with a number of different pieces of
-    software, the simplest would be using <strong>memcached</strong> to store sessions.</p>
+    <p>Each check transaction will take at least one second, this is a feature of the client to
+      prevent brute-force attacks on the login.</p>
 
     <form action="/user/login/" method="post">
       <label>Username</label>
