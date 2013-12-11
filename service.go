@@ -187,6 +187,16 @@ func wrapConn(conn *net.TCPConn) chan Wrapper {
 	return ch
 }
 
+func filter(key string) (bool,string) {
+
+	ok := strings.Contains(key,"\n")
+	str := key
+	if ok {
+		str = strings.Trim(key,"\n")
+	}
+	return ok,str
+}
+
 /* handle client connection */
 func handleClient(conn *net.TCPConn, wg *WorkGroup, storech chan *Store, infoch chan *Information) {
 
@@ -216,11 +226,14 @@ func handleClient(conn *net.TCPConn, wg *WorkGroup, storech chan *Store, infoch 
 				return
 			}
 
-			parts := strings.Split(string(w.data), " ")
+			/* filter for \n at the end */
+			filtered,str := filter(string(w.data))
+
+			parts := strings.Split(str, " ")
 
 			if len(parts) < 2 {
 				log.Printf("Invalid data")
-				conn.Write([]byte("UNKNOWN\n"))
+				conn.Write(protocol.MakeRInvalid(filtered))
 				continue
 			}
 
@@ -229,14 +242,14 @@ func handleClient(conn *net.TCPConn, wg *WorkGroup, storech chan *Store, infoch 
 				s := <-storech
 				if s.Check(parts[1]) {
 
-					conn.Write(protocol.MakeRCheck(true))
+					conn.Write(protocol.MakeRCheck(true,filtered))
 				} else {
-					conn.Write(protocol.MakeRCheck(false))
+					conn.Write(protocol.MakeRCheck(false,filtered))
 				}
 				storech <- s
 				break
 			default:
-				conn.Write([]byte("UNKNOWN\n"))
+				conn.Write(protocol.MakeRUnknown(filtered))
 				break
 			}
 		}
@@ -274,13 +287,13 @@ func handle(conn *net.TCPConn, wg *WorkGroup, storech chan *Store, infoch chan *
 				return
 			}
 
-			//log.Printf("recieved : %s", string(w.data))
+			filtered,str := filter(string(w.data))
 
-			parts := strings.Split(string(w.data), " ")
+			parts := strings.Split(str, " ")
 
 			if len(parts) < 1 {
 				log.Printf("Invalid data")
-				conn.Write([]byte("UNKNOWN\n"))
+				conn.Write(protocol.MakeRInvalid(filtered))
 				continue
 			}
 
@@ -288,48 +301,48 @@ func handle(conn *net.TCPConn, wg *WorkGroup, storech chan *Store, infoch chan *
 			case "set": /* set operation */
 
 				if len(parts) < 2 {
-					conn.Write([]byte("INVALID DATA\n"))
+					conn.Write(protocol.MakeRInvalid(filtered))
 					break
 				}
 
 				s := <-storech
 				if s.Set(parts[1]) {
 
-					conn.Write(protocol.MakeRSet(true))
+					conn.Write(protocol.MakeRSet(true,filtered))
 				} else {
-					conn.Write(protocol.MakeRSet(false))
+					conn.Write(protocol.MakeRSet(false,filtered))
 				}
 				storech <- s
 				break
 			case "remove": /* remove operation */
 
 				if len(parts) < 2 {
-					conn.Write([]byte("INVALID DATA"))
+					conn.Write(protocol.MakeRInvalid(filtered))
 					break
 				}
 
 				s := <-storech
 				if s.Remove(parts[1]) {
 
-					conn.Write(protocol.MakeRRemove(true))
+					conn.Write(protocol.MakeRRemove(true,filtered))
 				} else {
-					conn.Write(protocol.MakeRRemove(false))
+					conn.Write(protocol.MakeRRemove(false,filtered))
 				}
 				storech <- s
 				break
 			case "check": /* check operation */
 
 				if len(parts) < 2 {
-					conn.Write([]byte("INVALID DATA"))
+					conn.Write(protocol.MakeRInvalid(filtered))
 					break
 				}
 
 				s := <-storech
 				if s.Check(parts[1]) {
 
-					conn.Write(protocol.MakeRCheck(true))
+					conn.Write(protocol.MakeRCheck(true,filtered))
 				} else {
-					conn.Write(protocol.MakeRCheck(false))
+					conn.Write(protocol.MakeRCheck(false,filtered))
 				}
 				storech <- s
 				break
@@ -341,13 +354,13 @@ func handle(conn *net.TCPConn, wg *WorkGroup, storech chan *Store, infoch chan *
 
 				storech <- ns
 
-				conn.Write([]byte("PURGE OK\n"))
+				conn.Write(protocol.MakeRPurge(true,filtered))
 				break
 
 			default: /* default unknown operation */
 				log.Printf("UNKNOWN")
 
-				conn.Write([]byte("UNKNOWN\n"))
+				conn.Write(protocol.MakeRUnknown(filtered))
 				break
 			}
 
@@ -414,7 +427,11 @@ func (s *Store) Check(key string) bool {
 
 	/* TODO: add a filter to remove /n and other end-of-lines */
 
-	log.Printf("check(%s..)\n",key[:8])
+	if len(key) >= 8 {
+		log.Printf("check %s..\n",key[:8])
+	} else {
+		log.Printf("check %s\n",key)
+	}
 
 	if _, exists := s.Entries[key]; exists {
 		return true
@@ -431,7 +448,11 @@ func (s *Store) Set(key string) bool {
 		return false
 	}
 
-	log.Printf("key %s.. set\n",key[:8])
+	if len(key) >= 8 {
+		log.Printf("key %s.. set\n",key[:8])
+	} else {
+		log.Printf("key %s set\n",key)
+	}
 
 	s.Entries[key] = time.Now()
 	return true

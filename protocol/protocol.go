@@ -16,11 +16,15 @@ func MakeTCheck(key string) []byte {
 	return []byte(fmt.Sprintf("CHECK %s", key))
 }
 
-func MakeRCheck(status bool) []byte {
+func MakeRCheck(status bool,nline bool) []byte {
 
 	str := "NO"
 	if status {
 		str = "YES"
+	}
+
+	if nline {
+		return []byte(fmt.Sprintf("CHECK %s\n",str))
 	}
 
 	return []byte(fmt.Sprintf("CHECK %s", str))
@@ -49,11 +53,15 @@ func MakeTSet(key string) []byte {
 	return []byte(fmt.Sprintf("SET %s", key))
 }
 
-func MakeRSet(status bool) []byte {
+func MakeRSet(status bool,nline bool) []byte {
 
 	str := "FAILED"
 	if status {
 		str = "OK"
+	}
+
+	if nline {
+		return []byte(fmt.Sprintf("SET %s\n",str))
 	}
 
 	return []byte(fmt.Sprintf("SET %s", str))
@@ -82,11 +90,15 @@ func MakeTRemove(key string) []byte {
 	return []byte(fmt.Sprintf("REMOVE %s", key))
 }
 
-func MakeRRemove(status bool) []byte {
+func MakeRRemove(status bool,nline bool) []byte {
 
 	str := "FAILED"
 	if status {
 		str = "OK"
+	}
+
+	if nline {
+		return []byte(fmt.Sprintf("REMOVE %s\n",str))
 	}
 
 	return []byte(fmt.Sprintf("REMOVE %s", str))
@@ -115,11 +127,15 @@ func MakeTPurge() []byte {
 	return []byte("PURGE")
 }
 
-func MakeRPurge(status bool) []byte {
+func MakeRPurge(status bool,nline bool) []byte {
 
 	str := "FAILED"
 	if status {
 		str = "OK"
+	}
+
+	if nline {
+		return []byte(fmt.Sprintf("PURGE %s\n",str))
 	}
 
 	return []byte(fmt.Sprintf("PURGE %s", str))
@@ -141,4 +157,23 @@ func IsPurgeValid(d []byte) (bool, error) {
 	}
 
 	return false, nil
+}
+
+
+func MakeRUnknown(nline bool) []byte {
+
+	if nline {
+		return []byte("UNKNOWN\n")
+	}
+	
+	return []byte("UNKNOWN")
+}
+
+func MakeRInvalid(nline bool) []byte {
+
+	if nline {
+		return []byte("INVALID\n")
+	}
+
+	return []byte("INVALID")
 }
